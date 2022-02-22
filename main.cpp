@@ -50,16 +50,16 @@ int main()
 
 
 	// Create two waypoints (1,1) and (2,2)
-	float waypoints[12] = {10, 10, 20, 10, 30, 10, 30, 30, 0, 30, -30, -60};
+	float waypoints[12] = {0, 0, 5, 10, 10, 15, 10, 5, 5, 5};
 
 	// Encrypt the waypoints
-	state.preprocessing(waypoints, 6);
+	state.preprocessing(waypoints, 5);
 	std::cout << "After preprocessing\n";
 	
 	
 	// Pass the USV NED position (0,0) to quantize and encrypt
 	uint32_t b = 0;
-	float x_pos = 0;
+	float x_pos = -1;
 	float y_pos = 0;
 	float speed = 0.1;
 	mpz_t c_x, c_y;
@@ -84,7 +84,7 @@ int main()
 	std::ofstream log_desired_yaw("desired_yaw.txt");
 	std::ofstream log_waypoints("waypoints.txt");
 
-	for (int i = 0; i < 6; i++)
+	for (int i = 0; i < 5; i++)
 	{
 		log_waypoints << waypoints[2*i] << "\t" << waypoints[2*i+1] << std::endl;
 	}
