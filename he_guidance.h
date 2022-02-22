@@ -17,6 +17,9 @@ class Encrypted_ilos_guidance
 		mpz_t N;
 		mpz_t p;
 		mpz_t gamma;
+		mpz_t gamma_inv_trig;
+		mpz_t gamma_inverse;
+		mpz_t gamma_time;
 		mpz_t kp_bar;
 		mpz_t ki_bar;
 		mpz_t delta_t;
@@ -37,6 +40,9 @@ class Encrypted_ilos_guidance
 				const mpz_t y_in,
 				const mpz_t p_in,
 				const mpz_t gamma_in,
+				const mpz_t gamma_inverse_in,
+				const mpz_t gamma_inv_trig_in,
+				const mpz_t gamma_time_in,
 				const float threshold,
 				const float kp,
 				const float ki,
@@ -50,17 +56,17 @@ class Encrypted_ilos_guidance
 				mpz_t c_y,
 				const float x_n,
 				const float y_n,
-				uint8_t *b);
+				uint32_t *b);
 		void iterate(
 				mpz_t c_psi_d,
                                 mpz_t c_xe,
                                 mpz_t c_ye,
+				uint32_t *b,
                                 const mpz_t c_xn,
-                                const mpz_t c_yn,
-                                const uint8_t b); // Iterate ILOS guidance law
+                                const mpz_t c_yn); // Iterate ILOS guidance law
 		void decrypt_and_recover(
 				mpf_t psi_d_f,
-				uint8_t *b,
+				uint32_t *b,
 				const mpz_t c_psi_d,
 				const mpz_t c_x_e,
 				const mpz_t c_y_e);

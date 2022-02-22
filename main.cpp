@@ -1,4 +1,5 @@
 #include <iostream>
+#include <unistd.h>
 
 #include "he_guidance.h"
 #include "encoder.h"
@@ -23,16 +24,20 @@ int main()
         hex_decode(y_array, y_string.data(), y_string.size());
 	hex_decode(p_array, p_string.data(), p_string.size());
 
-	mpz_t N, y, p, gamma;
+	mpz_t N, y, p, gamma, gamma_inverse, gamma_inv_trig, gamma_time;
 	mpz_init(N);
 	mpz_init(y);
 	mpz_init(p);
 	mpz_init_set_ui(gamma, 10);
+	mpz_init_set_ui(gamma_inverse, 1000);
+	mpz_init_set_ui(gamma_inv_trig, 100);
+	mpz_init_set_ui(gamma_time, 1);
 
 	float kp = 1;
-	float ki = 1;
+	//float ki = 1;
+	float ki = 0;
 	float delta_t = 1;
-	float threshold = 0.1;
+	float threshold = 0.2;
 
         std::cout << "Mpz import\n";
         mpz_import(N, ct_size_byte, 1, 1, 0, 0, N_array);
@@ -40,41 +45,73 @@ int main()
 	mpz_import(p, ct_size_byte/2, 1, 1, 0, 0, p_array);
 
 	std::cout << "instantiating state\n";
-	Encrypted_ilos_guidance state(N, y, p, gamma, threshold, kp, ki, delta_t, msgsize);
+	Encrypted_ilos_guidance state(N, y, p, gamma, gamma_inverse, gamma_inv_trig, gamma_time, threshold, kp, ki, delta_t, msgsize);
 
 
 	// Create two waypoints (1,1) and (2,2)
-	float waypoints[4] = {1, 1, 2, 2};
+	float waypoints[12] = {1, 1, 2, 1, 3, 1, 3, 3, 0, 3, 0, 0};
 
 	// Encrypt the waypoints
-	state.preprocessing(waypoints, 2);
+	state.preprocessing(waypoints, 6);
 	std::cout << "After preprocessing\n";
+	
+	
 	// Pass the USV NED position (0,0) to quantize and encrypt
-	uint8_t b = 0;
+	uint32_t b = 0;
+	float x_pos = 0;
+	float y_pos = -1;
+	float speed = 0.1;
 	mpz_t c_x, c_y;
 	mpz_init(c_x);
 	mpz_init(c_y);
-	state.quantize_and_encrypt(c_x, c_y, 0, 0, &b);
 	
-	std::cout << "After quantize and encrypt\n";
-	// Pass the encrypted NED position to the controller
+	mpf_t psi_d_f;
+	mpf_init(psi_d_f);
+	
 	mpz_t c_psi_d, c_xe, c_ye;
 	mpz_init(c_psi_d);
 	mpz_init(c_xe);
 	mpz_init(c_ye);
-	state.iterate(c_psi_d, c_xe, c_ye, c_x, c_y, b);
-	std::cout << "After iterate\n";
-	// Decrypt and recover the desired heading
-	mpf_t psi_d_f;
-	mpf_init(psi_d_f);
-	state.decrypt_and_recover(psi_d_f, &b, c_psi_d, c_xe, c_ye);
 
-	std::cout << "After decrypt and recover\n";
-	// Print out the desired heading
-	float heading = mpf_get_d(psi_d_f);
+	uint8_t count = 0;
+	while (count < 6)
+	{
+		std::cout << "outer b: " << b << std::endl;
+		state.quantize_and_encrypt(c_x, c_y, x_pos, y_pos, &b);
 
-	std::cout << "Desired heading: " << heading << std::endl;
+		//std::cout << "After quantize and encrypt\n";
+		// Pass the encrypted NED position to the controller
+		state.iterate(c_psi_d, c_xe, c_ye, &b, c_x, c_y);
 
+		//std::cout << "After iterate\n";
+		// Decrypt and recover the desired heading
+		state.decrypt_and_recover(psi_d_f, &b, c_psi_d, c_xe, c_ye);
+
+		if (b)
+		{
+			count++;
+		}
+
+		//std::cout << "After decrypt and recover\n";
+		// Print out the desired heading
+		float heading = mpf_get_d(psi_d_f);
+
+		std::cout << "Desired heading: " << heading << std::endl;
+
+		// Simulate dynamic system? Use a first order model for heading? What about position?
+		// Constant speed, varying heading? Set surge speed to 0.1 m/s, rest to 0? Use 
+		// desired heading directly?
+		x_pos = x_pos + speed*cos(heading);
+		y_pos = y_pos + speed*sin(heading);
+
+		std::cout << "x: " << x_pos << std::endl;
+		std::cout << "y: " << y_pos << std::endl;
+
+
+
+		sleep(1);
+	}
+	/*
 	// RHO AND RHO INV DEBUG
 	std::cout << "TESTING RHO AND RHO INV\n\n";
 	mpf_t test_f;
@@ -91,4 +128,5 @@ int main()
 	gmp_printf("test_f: %Ff\n", test_f);
 
 	// END RHO AND RHO INV DEBUG
+	*/
 }
