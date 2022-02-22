@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fstream>
 #include <unistd.h>
 
 #include "he_guidance.h"
@@ -35,7 +36,7 @@ int main()
 
 	float kp = 1;
 	//float ki = 1;
-	float ki = 0;
+	float ki = 0.1;
 	float delta_t = 1;
 	float threshold = 0.2;
 
@@ -49,7 +50,7 @@ int main()
 
 
 	// Create two waypoints (1,1) and (2,2)
-	float waypoints[12] = {1, 1, 2, 1, 3, 1, 3, 3, 0, 3, 0, 0};
+	float waypoints[12] = {10, 10, 20, 10, 30, 10, 30, 30, 0, 30, -30, -60};
 
 	// Encrypt the waypoints
 	state.preprocessing(waypoints, 6);
@@ -59,7 +60,7 @@ int main()
 	// Pass the USV NED position (0,0) to quantize and encrypt
 	uint32_t b = 0;
 	float x_pos = 0;
-	float y_pos = -1;
+	float y_pos = 0;
 	float speed = 0.1;
 	mpz_t c_x, c_y;
 	mpz_init(c_x);
@@ -73,8 +74,23 @@ int main()
 	mpz_init(c_xe);
 	mpz_init(c_ye);
 
+	float heading = 0;
+	float desired_heading = 0;
+	float kp_yaw = 1;
+
+	// Open log - Log both position and yaw?
+	std::ofstream log_position("position.txt");
+	std::ofstream log_yaw("yaw.txt");
+	std::ofstream log_desired_yaw("desired_yaw.txt");
+	std::ofstream log_waypoints("waypoints.txt");
+
+	for (int i = 0; i < 6; i++)
+	{
+		log_waypoints << waypoints[2*i] << "\t" << waypoints[2*i+1] << std::endl;
+	}
+
 	uint8_t count = 0;
-	while (count < 6)
+	while (count < 5)
 	{
 		std::cout << "outer b: " << b << std::endl;
 		state.quantize_and_encrypt(c_x, c_y, x_pos, y_pos, &b);
@@ -94,22 +110,37 @@ int main()
 
 		//std::cout << "After decrypt and recover\n";
 		// Print out the desired heading
-		float heading = mpf_get_d(psi_d_f);
+		desired_heading = mpf_get_d(psi_d_f);
 
-		std::cout << "Desired heading: " << heading << std::endl;
+		std::cout << "Desired heading: " << desired_heading << std::endl;
 
+		
 		// Simulate dynamic system? Use a first order model for heading? What about position?
 		// Constant speed, varying heading? Set surge speed to 0.1 m/s, rest to 0? Use 
 		// desired heading directly?
-		x_pos = x_pos + speed*cos(heading);
-		y_pos = y_pos + speed*sin(heading);
+		for (int i = 0; i < 10; i++)
+		{
+			// Proportional heading control with first order dynamics
+			heading = 0.9*heading + kp_yaw*(desired_heading-heading);
 
-		std::cout << "x: " << x_pos << std::endl;
-		std::cout << "y: " << y_pos << std::endl;
+			log_desired_yaw << desired_heading << std::endl;
+			log_yaw << heading << std::endl;
+
+			x_pos = x_pos + 0.1*speed*cos(heading);
+			y_pos = y_pos + 0.1*speed*sin(heading);
+
+			log_position << x_pos << "\t" << y_pos << std::endl;
+
+			std::cout << "x: " << x_pos << std::endl;
+			std::cout << "y: " << y_pos << std::endl;
+		}
+
+		//std::cout << "x: " << x_pos << std::endl;
+		//std::cout << "y: " << y_pos << std::endl;
 
 
 
-		sleep(1);
+		sleep(0.1);
 	}
 	/*
 	// RHO AND RHO INV DEBUG
