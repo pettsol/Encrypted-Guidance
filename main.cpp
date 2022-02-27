@@ -34,7 +34,7 @@ int main()
 	mpz_init_set_ui(gamma_inv_trig, 100);
 	mpz_init_set_ui(gamma_time, 1);
 
-	float kp = 1;
+	float kp = 0.25;
 	//float ki = 1;
 	float ki = 0.1;
 	float delta_t = 1;
@@ -61,7 +61,7 @@ int main()
 	uint32_t b = 0;
 	float x_pos = -1;
 	float y_pos = 0;
-	float speed = 0.25;
+	float speed = 0.1;
 	mpz_t c_x, c_y;
 	mpz_init(c_x);
 	mpz_init(c_y);
