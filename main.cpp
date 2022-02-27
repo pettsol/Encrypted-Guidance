@@ -50,7 +50,7 @@ int main()
 
 
 	// Create two waypoints (1,1) and (2,2)
-	float waypoints[12] = {0, 0, 5, 10, 10, 15, 10, 5, 5, 5};
+	float waypoints[12] = {0, 0, 5, 10, 10, 18, 14, 18, 13, 20};
 
 	// Encrypt the waypoints
 	state.preprocessing(waypoints, 5);
