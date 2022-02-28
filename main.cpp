@@ -34,9 +34,9 @@ int main()
 	mpz_init_set_ui(gamma_inv_trig, 100);
 	mpz_init_set_ui(gamma_time, 1);
 
-	float kp = 0.25;
+	float kp = 0.75;
 	//float ki = 1;
-	float ki = 0.05;
+	float ki = 0.1;
 	float delta_t = 1;
 	float threshold = 1;
 
@@ -77,7 +77,7 @@ int main()
 	float heading = 0;
 	float heading_rate = 0;
 	float desired_heading = 0;
-	float kp_yaw = 1.5;
+	float kp_yaw = 1;
 
 	float K, T, delta;
 	K = 0.5; T = 1;
