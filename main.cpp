@@ -38,7 +38,7 @@ int main()
 	//float ki = 1;
 	float ki = 0.1;
 	float delta_t = 1;
-	float threshold = 0.2;
+	float threshold = 1;
 
         std::cout << "Mpz import\n";
         mpz_import(N, ct_size_byte, 1, 1, 0, 0, N_array);
@@ -75,8 +75,12 @@ int main()
 	mpz_init(c_ye);
 
 	float heading = 0;
+	float heading_rate = 0;
 	float desired_heading = 0;
 	float kp_yaw = 1;
+
+	float K, T, delta;
+	K = 0.5; T = 1;
 
 	// Open log - Log both position and yaw?
 	std::ofstream log_position("position.txt");
@@ -120,8 +124,13 @@ int main()
 		// desired heading directly?
 		for (int i = 0; i < 10; i++)
 		{
-			// Proportional heading control with first order dynamics
-			heading = 0.9*heading + kp_yaw*(desired_heading-heading);
+			// Proportional heading control with first-order Nomoto model
+			// We control yaw-rate!
+			heading_rate = heading_rate + (-(heading_rate/T) + kp_yaw*(desired_heading - heading))*0.1;
+			heading = heading + heading_rate*0.1;
+			std::cout << "Heading_rate: " << heading_rate << std::endl;
+			std::cout << "Heading: " << heading << std::endl;
+			//heading = 0.9*heading + kp_yaw*(desired_heading-heading);
 
 			log_desired_yaw << desired_heading << std::endl;
 			log_yaw << heading << std::endl;
