@@ -61,7 +61,7 @@ int main()
 	uint32_t b = 0;
 	float x_pos = -1;
 	float y_pos = 0;
-	float speed = 0.25;
+	float speed = 0.5;
 	mpz_t c_x, c_y;
 	mpz_init(c_x);
 	mpz_init(c_y);
