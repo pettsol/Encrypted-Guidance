@@ -50,7 +50,7 @@ int main()
 
 
 	// Create two waypoints (1,1) and (2,2)
-	float waypoints[12] = {0, 0, 5, 10, 10, 18, 15, 23, 20, 20};
+	float waypoints[12] = {0, 0, 5, 10, 5, 18, 15, 23, 20, 20};
 
 	// Encrypt the waypoints
 	state.preprocessing(waypoints, 5);
@@ -61,7 +61,7 @@ int main()
 	uint32_t b = 0;
 	float x_pos = -1;
 	float y_pos = 0;
-	float speed = 0.1;
+	float speed = 0.25;
 	mpz_t c_x, c_y;
 	mpz_init(c_x);
 	mpz_init(c_y);
