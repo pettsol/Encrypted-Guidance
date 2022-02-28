@@ -36,7 +36,7 @@ int main()
 
 	float kp = 0.25;
 	//float ki = 1;
-	float ki = 0.1;
+	float ki = 0.05;
 	float delta_t = 1;
 	float threshold = 1;
 
@@ -77,7 +77,7 @@ int main()
 	float heading = 0;
 	float heading_rate = 0;
 	float desired_heading = 0;
-	float kp_yaw = 1;
+	float kp_yaw = 1.5;
 
 	float K, T, delta;
 	K = 0.5; T = 1;
