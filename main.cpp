@@ -20,7 +20,6 @@ int main()
         uint8_t y_array[ct_size_byte] = {0};
 	uint8_t p_array[ct_size_byte/2] = {0};
 
-        std::cout << "Hex decoding\n";
         hex_decode(N_array, N_string.data(), N_string.size());
         hex_decode(y_array, y_string.data(), y_string.size());
 	hex_decode(p_array, p_string.data(), p_string.size());
@@ -40,12 +39,10 @@ int main()
 	float delta_t = 1;
 	float threshold = 1;
 
-        std::cout << "Mpz import\n";
         mpz_import(N, ct_size_byte, 1, 1, 0, 0, N_array);
         mpz_import(y, ct_size_byte, 1, 1, 0, 0, y_array);
 	mpz_import(p, ct_size_byte/2, 1, 1, 0, 0, p_array);
 
-	std::cout << "instantiating state\n";
 	Encrypted_ilos_guidance state(N, y, p, gamma, gamma_inverse, gamma_inv_trig, gamma_time, threshold, kp, ki, delta_t, msgsize);
 
 
@@ -54,14 +51,12 @@ int main()
 
 	// Encrypt the waypoints
 	state.preprocessing(waypoints, 5);
-	std::cout << "After preprocessing\n";
-	
 	
 	// Pass the USV NED position (0,0) to quantize and encrypt
 	uint32_t b = 0;
-	float x_pos = -1;
+	float x_pos = 0;
 	float y_pos = 0;
-	float speed = 0.5;
+	float speed = 1;
 	mpz_t c_x, c_y;
 	mpz_init(c_x);
 	mpz_init(c_y);
@@ -96,14 +91,11 @@ int main()
 	uint8_t count = 0;
 	while (count < 5)
 	{
-		std::cout << "outer b: " << b << std::endl;
 		state.quantize_and_encrypt(c_x, c_y, x_pos, y_pos, &b);
 
-		//std::cout << "After quantize and encrypt\n";
 		// Pass the encrypted NED position to the controller
 		state.iterate(c_psi_d, c_xe, c_ye, &b, c_x, c_y);
 
-		//std::cout << "After iterate\n";
 		// Decrypt and recover the desired heading
 		state.decrypt_and_recover(psi_d_f, &b, c_psi_d, c_xe, c_ye);
 
@@ -112,7 +104,6 @@ int main()
 			count++;
 		}
 
-		//std::cout << "After decrypt and recover\n";
 		// Print out the desired heading
 		desired_heading = mpf_get_d(psi_d_f);
 
@@ -130,7 +121,6 @@ int main()
 			heading = heading + heading_rate*0.1;
 			std::cout << "Heading_rate: " << heading_rate << std::endl;
 			std::cout << "Heading: " << heading << std::endl;
-			//heading = 0.9*heading + kp_yaw*(desired_heading-heading);
 
 			log_desired_yaw << desired_heading << std::endl;
 			log_yaw << heading << std::endl;
@@ -144,29 +134,6 @@ int main()
 			std::cout << "y: " << y_pos << std::endl;
 		}
 
-		//std::cout << "x: " << x_pos << std::endl;
-		//std::cout << "y: " << y_pos << std::endl;
-
-
-
-		sleep(0.1);
+		sleep(1);
 	}
-	/*
-	// RHO AND RHO INV DEBUG
-	std::cout << "TESTING RHO AND RHO INV\n\n";
-	mpf_t test_f;
-	mpf_init_set_d(test_f, -1.0);
-	gmp_printf("test_f: %Ff\n", test_f);
-
-	mpz_t test_z;
-	mpz_init(test_z);
-
-	state.rho(test_z, test_f, gamma);
-	gmp_printf("test_z: %Zd\n", test_z);
-
-	state.rho_inv(test_f, test_z, gamma);
-	gmp_printf("test_f: %Ff\n", test_f);
-
-	// END RHO AND RHO INV DEBUG
-	*/
 }
