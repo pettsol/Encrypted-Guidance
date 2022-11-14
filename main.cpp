@@ -24,37 +24,39 @@ int main()
         hex_decode(y_array, y_string.data(), y_string.size());
 	hex_decode(p_array, p_string.data(), p_string.size());
 
-	mpz_t N, y, p, gamma, gamma_inverse, gamma_inv_trig, gamma_time;
+	mpz_t N, y, p, gamma_p, gamma_kp, gamma_ki, gamma_inverse, gamma_inv_trig, gamma_time;
 	mpz_init(N);
 	mpz_init(y);
 	mpz_init(p);
-	mpz_init_set_ui(gamma, 10);
-	mpz_init_set_ui(gamma_inverse, 1000);
-	mpz_init_set_ui(gamma_inv_trig, 100);
+	mpz_init_set_ui(gamma_p, 100);
+	mpz_init_set_ui(gamma_kp, 10000);
+	mpz_init_set_ui(gamma_ki, 10000);
+	mpz_init_set_ui(gamma_inverse, 100000000);
+	mpz_init_set_ui(gamma_inv_trig, 10000);
 	mpz_init_set_ui(gamma_time, 1);
 
-	float kp = 0.75;
+	float kp = 0.1;
 	//float ki = 1;
-	float ki = 0.1;
+	float ki = 0.001;
 	float delta_t = 1;
-	float threshold = 1;
+	float threshold = 5;
 
         mpz_import(N, ct_size_byte, 1, 1, 0, 0, N_array);
         mpz_import(y, ct_size_byte, 1, 1, 0, 0, y_array);
 	mpz_import(p, ct_size_byte/2, 1, 1, 0, 0, p_array);
 
-	Encrypted_ilos_guidance state(N, y, p, gamma, gamma_inverse, gamma_inv_trig, gamma_time, threshold, kp, ki, delta_t, msgsize);
+	Encrypted_ilos_guidance state(N, y, p, gamma_p, gamma_kp, gamma_ki, gamma_inverse, gamma_inv_trig, gamma_time, threshold, kp, ki, delta_t, msgsize);
 
 
 	// Create two waypoints (1,1) and (2,2)
-	float waypoints[12] = {0, 0, 5, 10, 5, 18, 15, 23, 20, 20};
+	float waypoints[12] = {0, 0, 50, 100, 50, 280, 150, 230, 200, 200};
 
 	// Encrypt the waypoints
 	state.preprocessing(waypoints, 5);
 	
 	// Pass the USV NED position (0,0) to quantize and encrypt
 	uint32_t b = 0;
-	float x_pos = 0;
+	float x_pos = 4;
 	float y_pos = 0;
 	float speed = 1;
 	mpz_t c_x, c_y;
@@ -91,7 +93,7 @@ int main()
 	uint8_t count = 0;
 	while (count < 5)
 	{
-		state.quantize_and_encrypt(c_x, c_y, x_pos, y_pos, &b);
+		state.quantize_and_encrypt(c_x, c_y, x_pos, y_pos);
 
 		// Pass the encrypted NED position to the controller
 		state.iterate(c_psi_d, c_xe, c_ye, &b, c_x, c_y);
@@ -134,6 +136,6 @@ int main()
 			std::cout << "y: " << y_pos << std::endl;
 		}
 
-		sleep(1);
+		sleep(0.1);
 	}
 }

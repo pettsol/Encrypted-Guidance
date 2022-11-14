@@ -16,7 +16,9 @@ class Encrypted_ilos_guidance
 		mpz_t y;
 		mpz_t N;
 		mpz_t p;
-		mpz_t gamma;
+		mpz_t gamma_p;
+		mpz_t gamma_kp;
+		mpz_t gamma_ki;
 		mpz_t gamma_inv_trig;
 		mpz_t gamma_inverse;
 		mpz_t gamma_time;
@@ -39,7 +41,9 @@ class Encrypted_ilos_guidance
 				const mpz_t N_in,
 				const mpz_t y_in,
 				const mpz_t p_in,
-				const mpz_t gamma_in,
+				const mpz_t gamma_p_in,
+				const mpz_t gamma_kp_in,
+				const mpz_t gamma_ki_in,
 				const mpz_t gamma_inverse_in,
 				const mpz_t gamma_inv_trig_in,
 				const mpz_t gamma_time_in,
@@ -55,8 +59,7 @@ class Encrypted_ilos_guidance
 				mpz_t c_x,
 				mpz_t c_y,
 				const float x_n,
-				const float y_n,
-				uint32_t *b);
+				const float y_n);
 		void iterate(
 				mpz_t c_psi_d,
                                 mpz_t c_xe,

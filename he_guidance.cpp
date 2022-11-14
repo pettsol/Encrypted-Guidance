@@ -8,7 +8,9 @@ Encrypted_ilos_guidance::Encrypted_ilos_guidance(
 						const mpz_t N_in,
 						const mpz_t y_in,
 						const mpz_t p_in,
-						const mpz_t gamma_in,
+						const mpz_t gamma_p_in,
+						const mpz_t gamma_kp_in,
+						const mpz_t gamma_ki_in,
 						const mpz_t gamma_inverse_in,
 						const mpz_t gamma_inv_trig_in,
 						const mpz_t gamma_time_in,
@@ -18,14 +20,14 @@ Encrypted_ilos_guidance::Encrypted_ilos_guidance(
 						const float delta_t_in,
 						const uint32_t size)
 {
-	//?? Constructor;
+	// Constructor;
 	// Init all stuff
-	//
-	// TODO: TA HØYDE FOR AT REGULATORPARAMETRE MÅ SKALERES
 	mpz_init_set(N, N_in);
 	mpz_init_set(y, y_in);
 	mpz_init_set(p, p_in);
-	mpz_init_set(gamma, gamma_in);
+	mpz_init_set(gamma_p, gamma_p_in);
+	mpz_init_set(gamma_kp, gamma_kp_in);
+	mpz_init_set(gamma_ki, gamma_ki_in);
 	mpz_init_set(gamma_inverse, gamma_inverse_in);
 	mpz_init_set(gamma_inv_trig, gamma_inv_trig_in);
 	mpz_init_set(gamma_time, gamma_time_in);
@@ -48,8 +50,8 @@ Encrypted_ilos_guidance::Encrypted_ilos_guidance(
 	mpf_init_set_d(kp_f, kp);
 	mpf_init_set_d(ki_f, ki);
 	mpf_init_set_d(delta_t_f, delta_t_in);
-	rho(kp_bar, kp_f, gamma);
-	rho(ki_bar, ki_f, gamma);
+	rho(kp_bar, kp_f, gamma_kp);
+	rho(ki_bar, ki_f, gamma_ki);
 	rho(delta_t, delta_t_f, gamma_time);
 }
 
@@ -87,10 +89,10 @@ void Encrypted_ilos_guidance::preprocessing(float *waypoints, size_t n)
 		mpf_set_d(sin_pi, sin(pi));
 		mpf_set_d(cos_pi, cos(pi));
 
-		rho(x_bar, x_f, gamma);
-		rho(y_bar, y_f, gamma);
-		rho(sin_pi_bar, sin_pi, gamma);
-		rho(cos_pi_bar, cos_pi, gamma);
+		rho(x_bar, x_f, gamma_p);
+		rho(y_bar, y_f, gamma_p);
+		rho(sin_pi_bar, sin_pi, gamma_p);
+		rho(cos_pi_bar, cos_pi, gamma_p);
 
 		joye_libert_encrypt(c_x, randstate, x_bar, y, N, msgsize);
 		joye_libert_encrypt(c_y, randstate, y_bar, y, N, msgsize);
@@ -114,8 +116,8 @@ void Encrypted_ilos_guidance::preprocessing(float *waypoints, size_t n)
 	y_next = *(waypoints++);
 	mpf_set_d(x_f, x_next);
 	mpf_set_d(y_f, y_next);
-	rho(x_bar, x_f, gamma);
-	rho(y_bar, y_f, gamma);
+	rho(x_bar, x_f, gamma_p);
+	rho(y_bar, y_f, gamma_p);
 
 	joye_libert_encrypt(c_x, randstate, x_bar, y, N, msgsize);
 
@@ -153,8 +155,7 @@ void Encrypted_ilos_guidance::quantize_and_encrypt(
 						mpz_t c_x,
 						mpz_t c_y,
 						const float x_n,
-						const float y_n,
-						uint32_t *b)
+						const float y_n)
 {
 	mpz_t x_n_bar, y_n_bar;
 
@@ -165,8 +166,8 @@ void Encrypted_ilos_guidance::quantize_and_encrypt(
 	mpf_init_set_d(x_n_f, x_n);
 	mpf_init_set_d(y_n_f, y_n);
 
-	rho(x_n_bar, x_n_f, gamma);
-	rho(y_n_bar, y_n_f, gamma);
+	rho(x_n_bar, x_n_f, gamma_p);
+	rho(y_n_bar, y_n_f, gamma_p);
 
 	mpz_init(c_x);
 	mpz_init(c_y);
@@ -175,7 +176,6 @@ void Encrypted_ilos_guidance::quantize_and_encrypt(
 	joye_libert_encrypt(c_y, randstate, y_n_bar, y, N, msgsize);
 }
 
-// Use a class for this? Queue of encrypted waypoints, angles, ... ?
 void Encrypted_ilos_guidance::iterate(
 				mpz_t c_psi_d,
 			       	mpz_t c_xe,
@@ -222,7 +222,8 @@ void Encrypted_ilos_guidance::iterate(
 	mpz_init(c_yep);
 	mpz_init(c_xep);
 
-	// Compute cross-track error
+	// Compute encrypted cross-track error
+	// homomorphically
 	mpz_invert(inv, current_origin_x, N);
 	mpz_mul(c_yep, c_xn, inv);
 	mpz_mod(c_yep, c_yep, N);
@@ -238,7 +239,7 @@ void Encrypted_ilos_guidance::iterate(
 	mpz_mul(c_yep, c_yep, tmp_x);
 	mpz_mod(c_yep, c_yep, N);
 	
-	// Update integral?
+	// Update integral
 	mpz_powm(tmp_x, c_yep, delta_t, N);
 	mpz_mul(c_integral, c_integral, tmp_x);
 	mpz_mod(c_integral, c_integral, N);
@@ -248,7 +249,7 @@ void Encrypted_ilos_guidance::iterate(
 	mpz_invert(tmp_x, tmp_x, N);
 	mpz_powm(inv, c_integral, ki_bar, N);
 	mpz_invert(inv, inv, N);
-	mpz_mul(c_psi_d, current_c_pi, tmp_x); // Get ciphertext c_pi!
+	mpz_mul(c_psi_d, current_c_pi, tmp_x);
 	mpz_mod(c_psi_d, c_psi_d, N);
 	mpz_mul(c_psi_d, c_psi_d, inv);
 	mpz_mod(c_psi_d, c_psi_d, N);
@@ -257,8 +258,10 @@ void Encrypted_ilos_guidance::iterate(
 	// First part
 	mpz_t x_tilde;
 	mpz_init(x_tilde);
-	mpz_invert(inv, c_xn, N);
-	mpz_mul(x_tilde, next_wp_x, inv);
+	//mpz_invert(inv, c_xn, N);
+	mpz_invert(inv, next_wp_x, N);
+	//mpz_mul(x_tilde, next_wp_x, inv);
+	mpz_mul(x_tilde, c_xn, inv);
 	mpz_mod(x_tilde, x_tilde, N);
 	mpz_powm(c_yep, x_tilde, current_sin_pi, N);
 	mpz_powm(c_xep, x_tilde, current_cos_pi, N);
@@ -267,8 +270,10 @@ void Encrypted_ilos_guidance::iterate(
 	mpz_invert(c_yep, c_yep, N);
 
 	// Second part
-	mpz_invert(inv, c_yn, N);
-	mpz_mul(tmp_y, next_wp_y, inv);
+	mpz_invert(inv, next_wp_y, N);
+	mpz_mul(tmp_y, c_yn, inv);
+	//mpz_invert(inv, c_yn, N);
+	//mpz_mul(tmp_y, next_wp_y, inv);
 	mpz_mod(tmp_y, tmp_y, N);
 	mpz_powm(tmp_x, tmp_y, current_sin_pi, N);
 	mpz_powm(tmp_y, tmp_y, current_cos_pi, N);
