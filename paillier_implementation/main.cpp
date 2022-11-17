@@ -1,8 +1,9 @@
 #include <iostream>
 #include <fstream>
 #include <unistd.h>
+#include <chrono>
 
-#include "joye_libert_journal/joye_libert.h"
+#include "paillier/paillier.h"
 #include "he_guidance.h"
 #include "encoder.h"
 
@@ -44,23 +45,18 @@ int main()
 	uint32_t keysize = 2048;
 	uint32_t msgsize = 32;
 
-	// Set N, y, p?
-	std::string N_string = "C09858A300D8852F23BC728E0585FB5BD8DB7490394F62122B75C1769A642B63136E87DF442CBFF03F12055DC173829247C492517822924D6C5C2390CF71D00282081B23327AA3A1F9C103F5395E3F243FA4D14E3ACA47D530D5D4341A1713CF0425C3F755ED6ED3E0A486DE977DEA6D0A149BBFF66BFCF3BAFB4217B8975A9EA695CB9066FBB00B7C97656DC171E6095898343D5DC98B24D115CA12FF17392DABE07164B3E8CB26890EBCB528E9ADF32597DBFB048A7D6D2494345FE0A4E107D1870395CDEE2B438BAD17C150EA44D4CA8D2290CF4F3113263D8CAF5E6B13366DA2F584D18519FAA7E847973B5F31BA7B970FF831C89201B1AFB44400000001";
-        std::string y_string = "53E61608834634EAE18E60C5B991B9F8D71B2D971CBE5AC9E09F4814ADDAB421EFDCC2870D2C92C87003FCFF55CCBA1D4F22F5AB90950FB020F8BE80BA9B4C7CA011F74C2D41581F0036D233B5E8E58B6DD5CA6DB0625D764B927A43FE78844090C6843F29A331B76F8ECE93E7E313ECCB9BCB6ED2330923899AAE43A0FD2430CB6772793755E74862E61E2AC376CFAB9D61827E646421B28E9E0E2ACA4625731AEBBB69EA37E0FA859E499B8A186C8EE6196954170EB8068593F0D764150A6D2E5D3FEA7D9D0D33AC553EECD5C3F27A310115D283E49377820195C8E67781B6F112A625B14B747FA4CC13D06EBA0917246C775F5C732865701AE9349EA8729C";	
-	std::string p_string = "DE0BBADE38204E63359A46E672A8D0A2FD5300692AB48F9EF732F5C3FA212B90C98229BBB79BECE734A622154C904DCE9A0F53D4A88B3E558EF7612F6694CE7518F204FE6846AEB6F58174D57A3372363C0D9FCFAA3DC18B1EFF7E89BF7678636580D17DD84A873B14B9C0E1680BBDC87647F3C382902D2F58D6541300000001";	
-	
-	uint8_t N_array[ct_size_byte] = {0};
-        uint8_t y_array[ct_size_byte] = {0};
-	uint8_t p_array[ct_size_byte/2] = {0};
+	gmp_randstate_t rand_state;
+	gmp_randinit_mt(rand_state);
 
-        hex_decode(N_array, N_string.data(), N_string.size());
-        hex_decode(y_array, y_string.data(), y_string.size());
-	hex_decode(p_array, p_string.data(), p_string.size());
-
-	mpz_t N, y, p, gamma_p, gamma_kp, gamma_ki, gamma_inverse, gamma_inv_trig, gamma_time;
+	mpz_t N, N2, lambda, g, p2, q2, mu, gamma_p,
+	      gamma_kp, gamma_ki, gamma_inverse, gamma_inv_trig, gamma_time;
 	mpz_init(N);
-	mpz_init(y);
-	mpz_init(p);
+	mpz_init(N2);
+	mpz_init(lambda);
+	mpz_init(g);
+	mpz_init(p2);
+	mpz_init(q2);
+	mpz_init(mu);
 	mpz_init_set_ui(gamma_p, 100);
 	mpz_init_set_ui(gamma_kp, 10000);
 	mpz_init_set_ui(gamma_ki, 10000);
@@ -68,17 +64,15 @@ int main()
 	mpz_init_set_ui(gamma_inv_trig, 10000);
 	mpz_init_set_ui(gamma_time, 1);
 
+	paillier_keygen(N, N2, p2, q2, g, lambda, mu, rand_state, keysize);
+
 	float kp = 0.1;
 	//float ki = 1;
 	float ki = 0.001;
 	float delta_t = 1;
 	float threshold = 1;
 
-        mpz_import(N, ct_size_byte, 1, 1, 0, 0, N_array);
-        mpz_import(y, ct_size_byte, 1, 1, 0, 0, y_array);
-	mpz_import(p, ct_size_byte/2, 1, 1, 0, 0, p_array);
-
-	Encrypted_ilos_guidance state(N, y, p, gamma_p, gamma_kp, gamma_ki, gamma_inverse, gamma_inv_trig, gamma_time, threshold, kp, ki, delta_t, msgsize);
+	Encrypted_ilos_guidance state(N, N2, lambda, g, p2, q2, mu, gamma_p, gamma_kp, gamma_ki, gamma_inverse, gamma_inv_trig, gamma_time, threshold, kp, ki, delta_t, msgsize);
 
 
 	// Create two waypoints (1,1) and (2,2)
@@ -119,6 +113,11 @@ int main()
 	std::ofstream log_waypoints("waypoints.txt");
 	std::ofstream log_cte("cte.txt");
 
+	// Log time
+	std::ofstream log_encryption("encryption_delay.txt");
+	std::ofstream log_evaluation("evaluation_delay.txt");
+	std::ofstream log_decryption("decryption_delay.txt");
+
 	for (int i = 0; i < 5; i++)
 	{
 		log_waypoints << waypoints[2*i] << "\t" << waypoints[2*i+1] << std::endl;
@@ -127,31 +126,32 @@ int main()
 	uint8_t count = 0;
 	while (count < 5)
 	{
+		// LOG ENCRYPTION TIME
+		auto start_time = std::chrono::system_clock::now();
 		state.quantize_and_encrypt(c_x, c_y, x_pos, y_pos);
+		auto stop_time = std::chrono::system_clock::now();
+		auto latency = std::chrono::duration_cast<std::chrono::microseconds>(stop_time - start_time);
+		log_encryption << latency.count() << std::endl;
+		// END OF ENCRYPTION TIME LOG
 
+		// LOG ENCRYPTED GUIDANCE TIME
 		// Pass the encrypted NED position to the controller
+		start_time = std::chrono::system_clock::now();
 		state.iterate(c_psi_d, c_xe, c_ye, &b, c_x, c_y);
+		stop_time = std::chrono::system_clock::now();
+		latency = std::chrono::duration_cast<std::chrono::microseconds>(stop_time - start_time);
+		log_evaluation << latency.count() << std::endl;
 
-		mpz_t y_e_bar;
-		mpz_init(y_e_bar);
-		// FOR LOGGING OF CROSS-TRACK ERROR ONLY
-		joye_libert_decrypt(y_e_bar, c_ye, p, y, msgsize);
-
-		mpf_t y_e_p;
-		mpf_init(y_e_p);
-
-		// Set the right gamma!	
-		rho_inv(y_e_p, y_e_bar, gamma_inv_trig);
-		float y_p = mpf_get_d(y_e_p);
-
-		log_cte << y_p << std::endl;
-		// END OF LOGGING OF CROSS-TRACK ERROR
-
-
-
+		// END OF ENCRYPTED GUIDANCE TIME LOG
+		//
+		// LOG DECRYPTION TIME
 		// Decrypt and recover the desired heading
+		start_time = std::chrono::system_clock::now();
 		state.decrypt_and_recover(psi_d_f, &b, c_psi_d, c_xe, c_ye);
-
+		stop_time = std::chrono::system_clock::now();
+		latency = std::chrono::duration_cast<std::chrono::microseconds>(stop_time - start_time);
+		log_decryption << latency.count() << std::endl;
+		// END OF DECRYPTION TIME LOG
 		if (b)
 		{
 			count++;
