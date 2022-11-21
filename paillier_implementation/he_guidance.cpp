@@ -58,9 +58,9 @@ Encrypted_ilos_guidance::Encrypted_ilos_guidance(
 	mpf_init_set_d(kp_f, kp);
 	mpf_init_set_d(ki_f, ki);
 	mpf_init_set_d(delta_t_f, delta_t_in);
-	rho(kp_bar, kp_f, gamma_kp);
-	rho(ki_bar, ki_f, gamma_ki);
-	rho(delta_t, delta_t_f, gamma_time);
+	rho(kp_bar, kp_f, gamma_kp, N);
+	rho(ki_bar, ki_f, gamma_ki, N);
+	rho(delta_t, delta_t_f, gamma_time, N);
 }
 
 void Encrypted_ilos_guidance::preprocessing(float *waypoints, size_t n)
@@ -97,10 +97,10 @@ void Encrypted_ilos_guidance::preprocessing(float *waypoints, size_t n)
 		mpf_set_d(sin_pi, sin(pi));
 		mpf_set_d(cos_pi, cos(pi));
 
-		rho(x_bar, x_f, gamma_p);
-		rho(y_bar, y_f, gamma_p);
-		rho(sin_pi_bar, sin_pi, gamma_p);
-		rho(cos_pi_bar, cos_pi, gamma_p);
+		rho(x_bar, x_f, gamma_p, N);
+		rho(y_bar, y_f, gamma_p, N);
+		rho(sin_pi_bar, sin_pi, gamma_p, N);
+		rho(cos_pi_bar, cos_pi, gamma_p, N);
 
 		paillier_encrypt(c_x, randstate, x_bar, g, N, N2);
 		paillier_encrypt(c_y, randstate, y_bar, g, N, N2);
@@ -112,7 +112,7 @@ void Encrypted_ilos_guidance::preprocessing(float *waypoints, size_t n)
 		courses.push(cos_pi_class);
 
 		mpf_set_d(pi_f, pi);
-		rho(c_pi, pi_f, gamma_inverse);
+		rho(c_pi, pi_f, gamma_inverse, N);
 		paillier_encrypt(c_pi, randstate, c_pi, g, N, N2);
 		mpz_class c_pi_class(c_pi);
 		encrypted_pi.push(c_pi_class);
@@ -124,8 +124,8 @@ void Encrypted_ilos_guidance::preprocessing(float *waypoints, size_t n)
 	y_next = *(waypoints++);
 	mpf_set_d(x_f, x_next);
 	mpf_set_d(y_f, y_next);
-	rho(x_bar, x_f, gamma_p);
-	rho(y_bar, y_f, gamma_p);
+	rho(x_bar, x_f, gamma_p, N);
+	rho(y_bar, y_f, gamma_p, N);
 
 	paillier_encrypt(c_x, randstate, x_bar, g, N, N2);
 
@@ -174,8 +174,8 @@ void Encrypted_ilos_guidance::quantize_and_encrypt(
 	mpf_init_set_d(x_n_f, x_n);
 	mpf_init_set_d(y_n_f, y_n);
 
-	rho(x_n_bar, x_n_f, gamma_p);
-	rho(y_n_bar, y_n_f, gamma_p);
+	rho(x_n_bar, x_n_f, gamma_p, N);
+	rho(y_n_bar, y_n_f, gamma_p, N);
 
 	mpz_init(c_x);
 	mpz_init(c_y);
@@ -266,9 +266,7 @@ void Encrypted_ilos_guidance::iterate(
 	// First part
 	mpz_t x_tilde;
 	mpz_init(x_tilde);
-	//mpz_invert(inv, c_xn, N);
 	mpz_invert(inv, next_wp_x, N2);
-	//mpz_mul(x_tilde, next_wp_x, inv);
 	mpz_mul(x_tilde, c_xn, inv);
 	mpz_mod(x_tilde, x_tilde, N2);
 	mpz_powm(c_yep, x_tilde, current_sin_pi, N2);
@@ -280,8 +278,6 @@ void Encrypted_ilos_guidance::iterate(
 	// Second part
 	mpz_invert(inv, next_wp_y, N2);
 	mpz_mul(tmp_y, c_yn, inv);
-	//mpz_invert(inv, c_yn, N);
-	//mpz_mul(tmp_y, next_wp_y, inv);
 	mpz_mod(tmp_y, tmp_y, N2);
 	mpz_powm(tmp_x, tmp_y, current_sin_pi, N2);
 	mpz_powm(tmp_y, tmp_y, current_cos_pi, N2);
@@ -316,9 +312,9 @@ void Encrypted_ilos_guidance::decrypt_and_recover(
 	mpf_init(y_e_p);
 
 	// Set the right gamma!	
-	rho_inv(psi_d_f, psi_d_bar, gamma_inverse);
-	rho_inv(x_e_p, x_e_bar, gamma_inv_trig);
-	rho_inv(y_e_p, y_e_bar, gamma_inv_trig);
+	rho_inv(psi_d_f, psi_d_bar, gamma_inverse, N);
+	rho_inv(x_e_p, x_e_bar, gamma_inv_trig, N);
+	rho_inv(y_e_p, y_e_bar, gamma_inv_trig, N);
 
 	float x_p_abs = abs(mpf_get_d(x_e_p));
 	float y_p_abs = abs(mpf_get_d(y_e_p));
@@ -337,31 +333,23 @@ void Encrypted_ilos_guidance::decrypt_and_recover(
 	// Send phi_d to the control system?
 }
 
-void Encrypted_ilos_guidance::rho(mpz_t out, mpf_t in, mpz_t gamma)
+void Encrypted_ilos_guidance::rho(mpz_t out, const mpf_t in, const mpz_t gamma, const mpz_t ptspace)
 {
 	mpf_t tmp;
 	mpf_init(tmp);
 	mpf_set_z(tmp, gamma);
 	mpf_mul(tmp, in, tmp);
 
-	mpz_t size;
-	mpz_init(size);
-	mpz_ui_pow_ui(size, 2, msgsize);
-
 	mpz_set_f(out, tmp);
-	mpz_mod(out, out, size);
+	mpz_mod(out, out, ptspace);
 }
 
-void Encrypted_ilos_guidance::rho_inv(mpf_t out, mpz_t in, mpz_t gamma)
+void Encrypted_ilos_guidance::rho_inv(mpf_t out, const mpz_t in, const mpz_t gamma, const mpz_t ptspace)
 {
-	
-	mpz_t size, halfsize;
-	mpz_init(size);
+	mpz_t halfsize;
 	mpz_init(halfsize);
-	mpz_ui_pow_ui(size, 2, msgsize);
-	mpz_ui_pow_ui(halfsize, 2, msgsize-1);
-
 	
+	mpz_div_ui(halfsize, ptspace, 2);
 	mpz_t test; 
 	mpz_init(test);
 	
@@ -370,14 +358,17 @@ void Encrypted_ilos_guidance::rho_inv(mpf_t out, mpz_t in, mpz_t gamma)
 	if (mpz_sgn(test) != -1)
 	{
 		// negative number
-		mpz_sub(in, in, size);
+		mpz_sub(test, in, ptspace);
+	} else {
+		mpz_set(test, in);
 	}
 
 	mpf_t gamma_f;
 	mpf_init(gamma_f);
 
 	mpf_set_z(gamma_f, gamma);
-	mpf_set_z(out, in);
+	
+	mpf_set_z(out, test);
 	mpf_div(out, out, gamma_f);
 }
 

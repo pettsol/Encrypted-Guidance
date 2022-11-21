@@ -9,14 +9,11 @@
 
 
 // HELPER FUNCTION FOR LOGGING PURPOSES
-void rho_inv(mpf_t out, mpz_t in, mpz_t gamma)
+void rho_inv(mpf_t out, const mpz_t in, const mpz_t gamma, const mpz_t ptspace)
 {
-	uint32_t msgsize = 32;	
-	mpz_t size, halfsize;
-	mpz_init(size);
+	mpz_t halfsize;
 	mpz_init(halfsize);
-	mpz_ui_pow_ui(size, 2, msgsize);
-	mpz_ui_pow_ui(halfsize, 2, msgsize-1);
+	mpz_div_ui(halfsize, ptspace, 2);
 
 	
 	mpz_t test; 
@@ -27,23 +24,24 @@ void rho_inv(mpf_t out, mpz_t in, mpz_t gamma)
 	if (mpz_sgn(test) != -1)
 	{
 		// negative number
-		mpz_sub(in, in, size);
+		mpz_sub(test, in, ptspace);
+	} else {
+		mpz_set(test, in);
 	}
 
 	mpf_t gamma_f;
 	mpf_init(gamma_f);
 
 	mpf_set_z(gamma_f, gamma);
-	mpf_set_z(out, in);
+	mpf_set_z(out, test);
 	mpf_div(out, out, gamma_f);
 }
 
 
 int main()
 {
-	size_t ct_size_byte = 256;
-	uint32_t keysize = 2048;
-	uint32_t msgsize = 32;
+	uint32_t keysize = 3072;
+	uint32_t msgsize = 64;
 
 	gmp_randstate_t rand_state;
 	gmp_randinit_mt(rand_state);

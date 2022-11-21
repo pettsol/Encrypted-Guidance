@@ -14,17 +14,19 @@ int main()
 	mpz_init(output);
 
 	// Define Paillier parameters
-	mpz_t N, N2, lambda, mu, g;
+	mpz_t N, N2, lambda, mu, g, p2, q2;
 	mpz_init(N);
 	mpz_init(N2);
 	mpz_init(lambda);
 	mpz_init(mu);
 	mpz_init(g);
+	mpz_init(p2);
+	mpz_init(q2);
 
 	// Set keysize = 3072 bits
 	uint32_t keysize = 3072;
 
-	paillier_keygen(N, N2, g, lambda, mu, state, keysize);
+	paillier_keygen(N, N2, p2, q2, g, lambda, mu, state, keysize);
 
 	// Variables to hold encrypted data
 	mpz_t c1, c2, c3;
@@ -38,7 +40,7 @@ int main()
 	mpz_mul(c3, c1, c2);
 	mpz_mod(c3, c3, N2);
 
-	paillier_decrypt(output, c3, lambda, mu, N, N2);
+	paillier_decrypt(output, c3, lambda, mu, N, p2, q2);
 
 	// Print output to check for homomorphic property
 	gmp_printf("Addition output = %Zd\n", output);
@@ -48,7 +50,7 @@ int main()
 	mpz_init(c4);
 
 	mpz_powm(c4, c3, summand1, N2);
-	paillier_decrypt(output, c4, lambda, mu, N, N2);
+	paillier_decrypt(output, c4, lambda, mu, N, p2, q2);
 
 	gmp_printf("Plaintext multiplication output = %Zd\n", output);
 }

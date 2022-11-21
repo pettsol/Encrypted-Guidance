@@ -83,11 +83,13 @@ class Encrypted_ilos_guidance
 				const mpz_t c_y_e);
 		void rho(
 				mpz_t out,
-				mpf_t in,
-				mpz_t gamma);
+				const mpf_t in,
+				const mpz_t gamma,
+				const mpz_t ptspace);
 		void rho_inv(
 				mpf_t out,
-				mpz_t in,
-				mpz_t gamma);
+				const mpz_t in,
+				const mpz_t gamma,
+				const mpz_t ptspace);
 };
 #endif
