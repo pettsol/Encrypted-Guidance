@@ -62,16 +62,15 @@ int main()
 	mpz_init(y);
 	mpz_init(p);
 	mpz_init_set_ui(gamma_p, 100);
-	mpz_init_set_ui(gamma_kp, 10000);
+	mpz_init_set_ui(gamma_kp, 100000);
 	mpz_init_set_ui(gamma_ki, 10000);
-	mpz_init_set_ui(gamma_inverse, 100000000);
+	mpz_init_set_ui(gamma_inverse, 1000000000);
 	mpz_init_set_ui(gamma_inv_trig, 10000);
-	mpz_init_set_ui(gamma_time, 1);
+	mpz_init_set_ui(gamma_time, 10);
 
-	float kp = 0.1;
-	//float ki = 1;
-	float ki = 0.001;
-	float delta_t = 1;
+	float kp = 0.5;
+	float ki = 0.05;
+	float delta_t = 0.2;
 	float threshold = 1;
 
         mpz_import(N, ct_size_byte, 1, 1, 0, 0, N_array);
@@ -107,10 +106,11 @@ int main()
 	float heading = 0;
 	float heading_rate = 0;
 	float desired_heading = 0;
-	float kp_yaw = 1;
+	float kp_yaw = 1.5;
 
-	float K, T, delta;
-	K = 1/41.4; T = 1;
+	// Nomoto gain K and Nomoto time constant T
+	float K, T;
+	K = 0.5; T = 1;
 
 	// Open log - Log both position and yaw?
 	std::ofstream log_position("position.txt");
@@ -163,23 +163,22 @@ int main()
 		std::cout << "Desired heading: " << desired_heading << std::endl;
 
 		
-		// Simulate dynamic system? Use a first order model for heading? What about position?
-		// Constant speed, varying heading? Set surge speed to 0.1 m/s, rest to 0? Use 
-		// desired heading directly?
+		// Simulate dynamic system - Use a first order Nomoto
+		// model for heading control. Constant speed, varying heading.
 		for (int i = 0; i < 5; i++)
 		{
 			// Proportional heading control with first-order Nomoto model
-			// We control yaw-rate!
-			heading_rate = heading_rate + (-(heading_rate/T) + kp_yaw*(desired_heading - heading))*0.1;
-			heading = heading + heading_rate*0.1;
+			// We control yaw-rate - Frequency is 25 Hz -> timestep = 0.04 sec
+			heading_rate = heading_rate + (-(heading_rate/T) + K/T*kp_yaw*(desired_heading - heading))*0.04;
+			heading = heading + heading_rate*0.04;
 			std::cout << "Heading_rate: " << heading_rate << std::endl;
 			std::cout << "Heading: " << heading << std::endl;
 
 			log_desired_yaw << desired_heading << std::endl;
 			log_yaw << heading << std::endl;
 
-			x_pos = x_pos + 0.1*speed*cos(heading);
-			y_pos = y_pos + 0.1*speed*sin(heading);
+			x_pos = x_pos + 0.04*speed*cos(heading);
+			y_pos = y_pos + 0.04*speed*sin(heading);
 
 			log_position << x_pos << "\t" << y_pos << std::endl;
 
